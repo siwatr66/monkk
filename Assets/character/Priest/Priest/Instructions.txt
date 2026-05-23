@@ -1,0 +1,26 @@
+
+Thank you for downloading this asset. 
+The following information is useful when importing the sprite sheets:
+----------------
+
+Priest.png
+41 frames, frame resolution: 64x64px 
+
+Priest_Attack.png
+18 frames, frame resolution: 80x80px
+
+Priest_DeathNoBlood.png
+12 frames, frame resolution: 64x64px
+
+Priest_Heal.png
+18 frames, frame resolution: 80x80px
+
+EnvironmentTiles.png
+4 frames, frame resolution: 32x32px
+
+----------------
+Check out the Preview files for more info.
+I want to thank you for supporting my work and for making it possible for me to continue doing what I love. 
+
+Best regards,
+ Sven
