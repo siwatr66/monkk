@@ -1,49 +1,55 @@
 // GameManager.cs
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    [Header("Level Settings")]
-    [SerializeField] private string nextSceneName; // ปรับเป็น SerializeField ตามมาตรฐาน Unity 6 เพื่อความปลอดภัยของข้อมูล
-
     void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
-    public void PlayerDied()
-    {
-        Debug.Log("Player Died. Restarting Level...");
-        // Unity 6 แนะนำให้เคลียร์ Garbage Collection เล็กน้อยก่อนโหลดซีนใหม่ในโมบายเพื่อลดการกระตุก
-        System.GC.Collect();
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-
+    // เมื่อพระชนะศัตรูแต่ละตัวได้ -> เลือดพระเต็ม + เรียกตัวถัดไป
     public void LevelCleared()
     {
-        Debug.Log("Level Cleared!");
         if (SaveSystem.Instance != null)
         {
             SaveSystem.Instance.SaveGameData();
         }
 
-        if (!string.IsNullOrEmpty(nextSceneName))
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null && player.TryGetComponent<PlayerHealth>(out var playerHealth))
         {
-            SceneManager.LoadScene(nextSceneName);
+            playerHealth.HealFull();
         }
-        else
+
+        if (EnemySpawnerManager.Instance != null)
         {
-            Debug.Log("No next scene defined. You win the game!");
+            EnemySpawnerManager.Instance.NextEnemy();
+        }
+    }
+
+    // เมื่อพระตาย -> ย้ายตัวพระกลับจุดเกิด และรีเซ็ตมอนสเตอร์กลับไปตัวแรกสุด
+    public void PlayerDied()
+    {
+        if (EnemySpawnerManager.Instance != null)
+        {
+            EnemySpawnerManager.Instance.ResetSpawner();
+        }
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        GameObject spawnObj = GameObject.Find("RespawnPoint");
+
+        if (player != null && spawnObj != null)
+        {
+            player.transform.position = spawnObj.transform.position;
+
+            if (player.TryGetComponent<PlayerHealth>(out var playerHealth))
+            {
+                playerHealth.RespawnSetup();
+            }
         }
     }
 }
