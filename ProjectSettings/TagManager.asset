@@ -42,5 +42,20 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: bg1
+    uniqueID: 3122909201
+    locked: 0
+  - name: bg2
+    uniqueID: 4157828787
+    locked: 0
+  - name: bg3
+    uniqueID: 2511898097
+    locked: 0
+  - name: player
+    uniqueID: 3407949077
+    locked: 0
+  - name: New Layer 5
+    uniqueID: 1382631995
+    locked: 0
   m_RenderingLayers:
   - Default

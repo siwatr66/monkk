@@ -1,5 +1,4 @@
-// ShapeshiftManager.cs
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 public class ShapeshiftManager : MonoBehaviour
@@ -8,7 +7,7 @@ public class ShapeshiftManager : MonoBehaviour
 
     public Dictionary<int, FormSkill> unlockedForms = new Dictionary<int, FormSkill>();
     public EnemyType CurrentForm { get; private set; } = EnemyType.None;
-    
+
     private SpriteRenderer playerSpriteRenderer;
     private Sprite originalSprite;
 
@@ -33,7 +32,6 @@ public class ShapeshiftManager : MonoBehaviour
 
     void Start()
     {
-        // Unity 6 แนะนำให้ใช้ TryGetComponent เพื่อความเร็วและปลอดภัย ป้องกัน NullReference
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null && player.TryGetComponent<SpriteRenderer>(out var spriteRenderer))
         {
@@ -44,7 +42,8 @@ public class ShapeshiftManager : MonoBehaviour
 
     void Update()
     {
-        // ตัวทดสอบบน Unity Editor คีย์บอร์ดคอมพิวเตอร์
+        if (GameManager.Instance != null && !GameManager.Instance.IsPlaying) return;
+
         if (Input.GetKeyDown(KeyCode.Alpha1)) TransformToForm(1);
         if (Input.GetKeyDown(KeyCode.Alpha2)) TransformToForm(2);
         if (Input.GetKeyDown(KeyCode.Alpha3)) TransformToForm(3);
@@ -54,6 +53,8 @@ public class ShapeshiftManager : MonoBehaviour
 
     public void TransformToForm(int slot)
     {
+        if (GameManager.Instance != null && !GameManager.Instance.IsPlaying) return;
+
         if (unlockedForms.TryGetValue(slot, out var form))
         {
             CurrentForm = form.type;
@@ -93,7 +94,7 @@ public class ShapeshiftManager : MonoBehaviour
                 FormSkill newForm = new FormSkill { type = type, sprite = sprite };
                 unlockedForms.Add(i, newForm);
                 Debug.Log($"Unlocked {type} on Slot {i}!");
-                
+
                 if (UIManager.Instance != null) UIManager.Instance.UpdateSkillUI();
                 break;
             }
