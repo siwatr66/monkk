@@ -21,18 +21,17 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask enemyLayers;
     [SerializeField] private int attackDamage = 10;
 
-    [Header("Shapeshifter Visuals")]
+    [Header("Shapeshifter Color Visuals (🟢 เปลี่ยนมาตั้งค่าสีแทนรูปสไปรท์)")]
     [SerializeField] private SpriteRenderer characterSpriteRenderer;
-    [SerializeField] private Sprite normalFormSprite;
-    [SerializeField] private Sprite waterFormSprite;
-    [SerializeField] private Sprite fireFormSprite;
-    [SerializeField] private Sprite windFormSprite;
-    [SerializeField] private Sprite earthFormSprite;
+    [SerializeField] private Color normalColor = Color.white;  // สีเดิมของนักเวท
+    [SerializeField] private Color waterColor = Color.blue;    // ร่างน้ำ (เช่น สีน้ำเงิน/ฟ้า)
+    [SerializeField] private Color fireColor = Color.red;      // ร่างไฟ (เช่น สีแดง)
+    [SerializeField] private Color windColor = Color.cyan;     // ร่างลม (เช่น สีฟ้าสว่าง/เขียวมินต์)
+    [SerializeField] private Color earthColor = new Color(0.5f, 0.35f, 0.1f); // ร่างดิน (สีน้ำตาล)
 
     private Animator anim;
     private bool isFacingRight = true;
 
-    // 🟢 [แก้ไขจุดที่ 1]: สลับชื่อแฮชส่งค่าให้ตรงกับพารามิเตอร์ "Run" และเพิ่ม "isGrounded" ในอนิเมเตอร์
     private static readonly int RunHash = Animator.StringToHash("Run");
     private static readonly int GroundedHash = Animator.StringToHash("isGrounded");
     private static readonly int AttackHash = Animator.StringToHash("Attack");
@@ -68,45 +67,44 @@ public class PlayerController : MonoBehaviour
         if (moveInputX > 0 && !isFacingRight) Flip();
         else if (moveInputX < 0 && isFacingRight) Flip();
 
-        // 🟢 [แก้ไขระบบเช็ค Layer พื้น]: ตรวจหาเลเยอร์หญ้า/ด่านสุสานผ่านพิกัดกล่องเซนเซอร์ปลายเท้า
         if (groundCheck != null)
         {
             isGrounded = Physics2D.OverlapCircle(groundCheck.position, checkRadius, whatIsGround);
         }
 
-        // 🟢 [แก้ไขจุดที่ 2]: บังคับส่งสัญญาณชีพไปบงการหน้าต่าง Animator ให้เปลี่ยนท่า
         if (anim != null && anim.enabled)
         {
-            anim.SetFloat(RunHash, Mathf.Abs(moveInputX)); // ส่งค่าความเร็วเดินไปที่สวิตช์ Run
-            anim.SetBool(GroundedHash, isGrounded);       // ส่งค่าแท้/เท็จของการแตะพื้นเลเยอร์ไปที่ isGrounded
+            anim.SetFloat(RunHash, Mathf.Abs(moveInputX));
+            anim.SetBool(GroundedHash, isGrounded);
         }
 
-        // คอยเช็คอัปเดตรูปร่างให้ตรงเสมอตลอดเวลา
+        // คอยเช็คอัปเดตสีสันให้ตรงเสมอตลอดเวลา
         ForceApplyVisualChange();
     }
 
-    // ⭐ [ฟังก์ชันเปลี่ยนรูปภาพพระแปลงร่าง]: เปิดเป็น public เพื่อให้ระบบ UI เรียกใช้งานได้
+    // ⭐ [ฟังก์ชันย้อมสีพระแปลงร่าง]: เปิดเป็น public ให้ระบบ UI สลับสีตามจานสีที่เราเลือกได้ทันที
     public void ForceApplyVisualChange()
     {
         if (ShapeshiftManager.Instance == null || characterSpriteRenderer == null) return;
 
         int currentForm = ShapeshiftManager.Instance.CurrentForm;
-        Sprite selectedSprite = null;
+        Color selectedColor = normalColor;
 
+        // 🟢 [ลอจิกสลับสี]: เปลี่ยนจากเช็ครูปมาเป็นจิ้มเลือกโทนสีตามหมายเลขร่างแปลง
         switch (currentForm)
         {
-            case 0: selectedSprite = normalFormSprite; break;
-            case 1: selectedSprite = waterFormSprite; break;
-            case 2: selectedSprite = fireFormSprite; break;
-            case 3: selectedSprite = windFormSprite; break;
-            case 4: selectedSprite = earthFormSprite; break;
+            case 0: selectedColor = normalColor; break;
+            case 1: selectedColor = waterColor; break;
+            case 2: selectedColor = fireColor; break;
+            case 3: selectedColor = windColor; break;
+            case 4: selectedColor = earthColor; break;
         }
 
-        if (selectedSprite != null && characterSpriteRenderer.sprite != selectedSprite)
+        // ถ้าย้อมสีปัจจุบันไม่ตรงกับสีร่างนั้น ให้สั่งเปลี่ยนสีทันที (และไม่ต้องปิดการทำงานของ Animator แล้ว!)
+        if (characterSpriteRenderer.color != selectedColor)
         {
-            if (anim != null) anim.enabled = (currentForm == 0);
-            characterSpriteRenderer.sprite = selectedSprite;
-            Debug.Log($"🎭 [เปลี่ยนร่างสำเร็จ] ตัวพระสลับภาพกราฟิกไปใช้ร่างหมายเลข {currentForm} บนหน้าจอแล้ว!");
+            characterSpriteRenderer.color = selectedColor;
+            Debug.Log($"🎭 [ย้อมสีร่างแปลงสำเร็จ] สลับไปใช้โทนสีของร่างหมายเลข {currentForm} แล้ว!");
         }
     }
 

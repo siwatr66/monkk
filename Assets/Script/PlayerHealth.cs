@@ -1,4 +1,4 @@
-﻿// PlayerHealth.cs (เวอร์ชันสมบูรณ์ 100% - รองรับระบบส่งสัญญาณฟื้นชีพด่านเดิม)
+﻿// PlayerHealth.cs (เวอร์ชันเสร็จสมบูรณ์ 100% - ส่งข้อมูลเชื่อมต่อกับ GameManager คลีนๆ)
 using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
@@ -19,7 +19,7 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= damage;
-        Debug.Log($"盒 [PLAYER HP] พระโดนโจมตี! เลือดเหลือ: {currentHealth} / {maxHealth}");
+        Debug.Log($"🛡 ️[PLAYER HP] พระโดนตอดเลือด! HP เหลือ: {currentHealth} / {maxHealth}");
 
         if (currentHealth <= 0)
         {
@@ -32,7 +32,7 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        Debug.Log("💀 [PLAYER STATUS] พระสิ้นชีพ! ส่งสายสัญญาณให้คำสั่ง GameManager จัดการชุบชีวิต...");
+        Debug.Log("💀 [PLAYER STATUS] พระสิ้นชีพ! ดีดส่งสัญญาณไปหา GameManager หลังบ้าน...");
 
         if (GameManager.Instance != null)
         {
@@ -44,7 +44,7 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         isDead = false;
-        Debug.Log($"💖 [PLAYER HP] เติมเลือดเต็มหลอดจากการฆ่ามอนสเตอร์! HP: {currentHealth}/{maxHealth}");
+        Debug.Log($"💖 [PLAYER HP] รีเลือดพระกลับมาเต็มหลอด! HP: {currentHealth}/{maxHealth}");
     }
 
     public void RespawnSetup()
@@ -56,6 +56,5 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         isDead = false;
-        Debug.Log($"🛡️ [PLAYER HP] ฟื้นชีพเสร็จสิ้น! รีเซ็ตเลือดพระกลับมาเต็มหลอด: {currentHealth}/{maxHealth}");
     }
 }

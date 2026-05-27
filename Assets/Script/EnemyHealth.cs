@@ -1,4 +1,4 @@
-﻿// EnemyHealth.cs (เวอร์ชันเสร็จสมบูรณ์ 100% - รวมระบบ Matrix ธาตุไขว้ + ระบบวิ่งชนหักเลือดพระอัตโนมัติ)
+﻿// EnemyHealth.cs (เวอร์ชันเสร็จสมบูรณ์ 100% - ระบบ Matrix ธาตุไขว้ + ระบบแผ่ออร่าตอดเลือดพระ มอนสเตอร์ไม่ตายแทน)
 using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
@@ -7,16 +7,18 @@ public class EnemyHealth : MonoBehaviour
     [SerializeField] private int maxHealth = 100;
     private int currentHealth;
 
-    // ⭐ ใส่เลขธาตุใน Inspector สำหรับปุ่มงอก: 1 = น้ำ, 2 = ไฟ, 3 = ลม, 4 = ดิน
+    // ใส่เลขธาตุใน Inspector สำหรับปุ่มงอก: 1 = น้ำ, 2 = ไฟ, 3 = ลม, 4 = ดิน
     [Header("Mobile Shapeshift ID")]
     [SerializeField] private int enemyElementNumber = 1;
 
     [Header("Visual References")]
-    [SerializeField] private EnemyType enemyType; // รหัส Enum ชนิดธาตุ (Normal, Water, Fire, Wind, Earth)
+    [SerializeField] private EnemyType enemyType;
     [SerializeField] private Sprite enemySprite;
 
-    [Header("Counter Attack Settings")]
-    [SerializeField] private int counterDamage = 15; // ดาเมจที่จะหักเลือดพระเมื่อวิ่งชนกัน
+    [Header("Aura Attack Settings")]
+    [SerializeField] private int counterDamage = 15;      // ดาเมจที่มอนสเตอร์จะตอดเลือดพระ
+    [SerializeField] private float attackCooldown = 1.0f;  // ตอดเลือดพระทุกๆ 1 วินาทีเมื่อยืนแช่ใกล้กัน
+    private float nextAttackTime = 0f;
 
     private bool isDead = false;
 
@@ -36,33 +38,39 @@ public class EnemyHealth : MonoBehaviour
 
         currentHealth -= finalDamage;
 
-        // 🚨 [CONSOLE HP CHECK]: พิมพ์โชว์ดาเมจและ HP มอนสเตอร์ขึ้น Console ชัดๆ ทุกครั้งที่โดนชก
         Debug.Log($"⚔️ [COMBAT MATRIX] พระร่าง {attackerElement} 🥊 ชก มอนสเตอร์ {enemyType} -> พลังทวีคูณ: {multiplier}x | ดาเมจสุทธิ: {finalDamage} | [ENEMY HP] เหลือ: {currentHealth}/{maxHealth}");
 
         if (currentHealth <= 0)
         {
+            isDead = true;
             Die();
         }
     }
 
-    // 💥 [ระบบแก้บั๊กพระไม่ตายวินาทีวิ่งชนกันกลางฉาก]
-    // ฟังก์ชันฟิสิกส์ 2D ของ Unity จะทำงานออโต้ทันทีเมื่อตัวมันวิ่งไปเตะโดนกล่องฟิสิกส์ของพระ
-    private void OnTriggerEnter2D(Collider2D collision)
+    // 🟢 [ซ่อมลอจิกเด็ดขาด]: มอนสเตอร์ทำดาเมจใส่พระฝั่งเดียว ห้ามมีคำสั่ง Die() ของมอนสเตอร์ในบล็อกนี้!
+    private void OnTriggerStay2D(Collider2D collision)
     {
         if (isDead) return;
 
-        // เช็คตัวตรวจจับว่าวัตถุที่วิ่งมาชน มี Tag ตรงกับคำว่า Player (ตัวพระ) หรือไม่
+        // เช็คชัวร์ว่าวัตถุที่วิ่งมาชนหรือแช่อยู่รอบตัวมี Tag ตรงกับคำว่า Player (ตัวพระ)
         if (collision.CompareTag("Player"))
         {
-            if (collision.TryGetComponent<PlayerHealth>(out var playerHealth))
+            if (Time.time >= nextAttackTime)
             {
-                Debug.Log($"💥 [COLLISION TOUCH] {gameObject.name} วิ่งชนเข้าตัวพระ! สั่งหัก HP พระสวนกลับทันที {counterDamage} หน่วย");
-                playerHealth.TakeDamage(counterDamage); // ยิงดาเมจลดเลือดพระทันที
+                if (collision.TryGetComponent<PlayerHealth>(out var playerHealth))
+                {
+                    Debug.Log($"💥 [AURA TOUCH] {gameObject.name} ปล่อยออร่าตอดพระ! หัก HP พระ {counterDamage} หน่วย");
+
+                    // สั่งหักเลือดพระเท่านั้น มอนสเตอร์ห้ามลดเลือดตัวเอง
+                    playerHealth.TakeDamage(counterDamage);
+
+                    nextAttackTime = Time.time + attackCooldown;
+                }
             }
         }
     }
 
-    // 🧬 [สมองกลคำนวณตารางธาตุไขว้ Matrix ชนะทางหลัก/รอง/แพ้ทาง]
+    // สมองกลคำนวณตารางธาตุไขว้ Matrix ชนะทางหลัก/รอง/แพ้ทาง
     private float GetMatrixDamageMultiplier(EnemyType attacker, EnemyType defender)
     {
         if (attacker == EnemyType.Normal || defender == EnemyType.Normal) return 1.0f;
@@ -70,25 +78,25 @@ public class EnemyHealth : MonoBehaviour
 
         switch (attacker)
         {
-            case EnemyType.Water: // 💧 ร่างน้ำ
-                if (defender == EnemyType.Fire) return 2.0f; // ชนะทางหลัก (น้ำดับไฟ)
-                if (defender == EnemyType.Wind) return 1.2f; // ชนะทางรอง
-                if (defender == EnemyType.Earth) return 0.5f; // แพ้ทางหลัก
+            case EnemyType.Water:
+                if (defender == EnemyType.Fire) return 2.0f;
+                if (defender == EnemyType.Wind) return 1.2f;
+                if (defender == EnemyType.Earth) return 0.5f;
                 break;
-            case EnemyType.Fire:  // 🔥 ร่างไฟ
-                if (defender == EnemyType.Wind) return 2.0f; // ชนะทางหลัก (ไฟโหมลม)
-                if (defender == EnemyType.Earth) return 1.2f; // ชนะทางรอง
-                if (defender == EnemyType.Water) return 0.5f; // แพ้ทางหลัก
+            case EnemyType.Fire:
+                if (defender == EnemyType.Wind) return 2.0f;
+                if (defender == EnemyType.Earth) return 1.2f;
+                if (defender == EnemyType.Water) return 0.5f;
                 break;
-            case EnemyType.Wind:  // 🌪️ ร่างลม
-                if (defender == EnemyType.Earth) return 2.0f; // ชนะทางหลัก (ลมพัดดิน)
-                if (defender == EnemyType.Water) return 1.2f; // ชนะทางรอง
-                if (defender == EnemyType.Fire) return 0.5f; // แพ้ทางหลัก
+            case EnemyType.Wind:
+                if (defender == EnemyType.Earth) return 2.0f;
+                if (defender == EnemyType.Water) return 1.2f;
+                if (defender == EnemyType.Fire) return 0.5f;
                 break;
-            case EnemyType.Earth: // 🪨 ร่างดิน
-                if (defender == EnemyType.Water) return 2.0f; // ชนะทางหลัก (ดินทับน้ำ)
-                if (defender == EnemyType.Fire) return 1.2f; // ชนะทางรอง
-                if (defender == EnemyType.Wind) return 0.5f; // แพ้ทางหลัก
+            case EnemyType.Earth:
+                if (defender == EnemyType.Water) return 2.0f;
+                if (defender == EnemyType.Fire) return 1.2f;
+                if (defender == EnemyType.Wind) return 0.5f;
                 break;
         }
         return 1.0f;
@@ -96,16 +104,12 @@ public class EnemyHealth : MonoBehaviour
 
     void Die()
     {
-        if (isDead) return;
-        isDead = true;
-
         Debug.Log($"💀 [ENEMY STATUS] {gameObject.name} HP เหลือ 0 ดับคาหมัดพระเรียบร้อย!");
 
         try
         {
             if (ShapeshiftManager.Instance != null)
             {
-                // ส่งตัวเลข ID ข้ามฝั่งไปสั่งให้ปุ่มพิกเซลอาร์ตงอกบนจอ Canvas
                 ShapeshiftManager.Instance.UnlockForm(enemyElementNumber);
             }
         }
@@ -114,7 +118,7 @@ public class EnemyHealth : MonoBehaviour
             Debug.LogWarning($"[Shapeshift Error] {e.Message}");
         }
 
-        // ระบบคุมด่านดึงมอนสเตอร์ตัวถัดไปสปอนลงสนาม
+        // ส่งสัญญาณบอก GameManager ว่ามอนสเตอร์ตายจริง ๆ ค่อยเสกตัวใหม่ลงด่าน
         if (GameManager.Instance != null)
         {
             GameManager.Instance.HandleEnemyDefeated();

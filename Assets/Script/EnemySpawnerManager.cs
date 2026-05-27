@@ -1,16 +1,14 @@
-﻿// EnemySpawnerManager.cs (เวอร์ชันสมบูรณ์ 100% บังคับสตาร์ทเสกศัตรูตัวแรกทันที)
-using UnityEngine;
+﻿using UnityEngine;
 
 public class EnemySpawnerManager : MonoBehaviour
 {
     public static EnemySpawnerManager Instance { get; private set; }
 
     [Header("Spawner Settings")]
-    [SerializeField] private GameObject[] enemyPrefabs; // อาร์เรย์เก็บแผ่น Prefab มอนสเตอร์
-    [SerializeField] private Transform spawnPoint;      // จุดพิกจัดเสกมอนสเตอร์ในฉาก
+    [SerializeField] private GameObject[] enemyPrefabs; // ตลับใส่ไฟล์มอนสเตอร์ทั้ง 4 ธาตุ
+    [SerializeField] private Transform spawnPoint;      // พิกัดจุดเสกในด่าน
 
     private int currentPrefabIndex = 0;
-    private GameObject currentSpawnedEnemy;
 
     void Awake()
     {
@@ -20,36 +18,39 @@ public class EnemySpawnerManager : MonoBehaviour
 
     void Start()
     {
-        // 🟢 [ระบบเซฟโซนกันเหนียว]: สั่งเปิดสวิตช์เสกมอนตัวแรกทันทีเมื่อเข้าฉากเกม
-        BeginRun();
+        // 🟢 ดีเลย์นิดนึงตอนเริ่มเกม เพื่อให้มอนสเตอร์ตัวแรกโผล่มาอย่างปลอดภัย ไม่โดนลบฟรี
+        Invoke("FirstSpawn", 0.05f);
     }
 
-    // ฟังก์ชันสั่งเริ่มต้นวงจรเสกมอนสเตอร์ด่านหลัก
-    public void BeginRun()
+    private void FirstSpawn()
+    {
+        ResetSpawner();
+    }
+
+    // สั่งล้างควอนตัมคิว กลับมานับหนึ่งใหม่ตอนเปิดเกม หรือตอนที่พระตายด่านรีเซ็ต
+    public void ResetSpawner()
     {
         currentPrefabIndex = 0;
-
-        // ถ้าในสนามยังไม่มีมอนสเตอร์ยืนอยู่เลย ให้สั่งเสกทันที
-        if (currentSpawnedEnemy == null)
-        {
-            SpawnNextEnemy();
-        }
+        SpawnNextEnemy();
     }
 
-    // ฟังก์ชันหลักในการสั่งผลิตตัวมอนสเตอร์เด้งลงสนาม
-    public bool SpawnNextEnemy()
+    // สั่งเลื่อนคิวส่งมอนสเตอร์ธาตุถัดไปลงฉาก (ทำงานเมื่อพระตบตัวเก่าชนะ)
+    public void NextEnemy()
     {
-        // 1. เช็คความปลอดภัยก่อนว่ามีไฟล์ Prefab ใส่ไว้ในช่องหรือเปล่า
+        SpawnNextEnemy();
+    }
+
+    private void SpawnNextEnemy()
+    {
         if (enemyPrefabs == null || enemyPrefabs.Length == 0)
         {
-            Debug.LogError("🛑 [Spawner Error] ลืมลากไฟล์มอนสเตอร์ใส่ในช่อง Enemy Prefabs ของเครื่องเสกศัตรู!");
-            return false;
+            Debug.LogError("🛑 [Spawner Error] ลืมลากไฟล์มอนสเตอร์ใส่ในช่อง Enemy Prefabs ฝั่งขวาครับ!");
+            return;
         }
 
-        // 2. เช็คจุดพิกัดวาง ถ้าไม่มีให้ใช้ตำแหน่งของเครื่องเสกเองแทน
         Vector3 spawnPos = spawnPoint != null ? spawnPoint.position : transform.position;
 
-        // ถ้าดัชนีเกินจำนวนคิวมอนสเตอร์ ให้ลูปวนกลับมาตัวแรกใหม่ (เล่นวนไปเรื่อยๆ)
+        // วนลูปกลับมาตัวแรกถ้าคิวเกินจำนวนที่มี
         if (currentPrefabIndex >= enemyPrefabs.Length)
         {
             currentPrefabIndex = 0;
@@ -59,20 +60,11 @@ public class EnemySpawnerManager : MonoBehaviour
 
         if (selectedPrefab != null)
         {
-            // 💥 สั่งคลอดวัตถุมอนสเตอร์ลงสนามฟิสิกส์ 2D
-            currentSpawnedEnemy = Instantiate(selectedPrefab, spawnPos, Quaternion.identity);
-            Debug.Log($"👾 [Spawner Success] เสกมอนสเตอร์สำเร็จ! ตัวที่ปล่อย: {currentSpawnedEnemy.name} | ลำดับคิวค้าง: {currentPrefabIndex}");
+            // เสกวัตถุมอนสเตอร์ตัวจริงลงสู่ฉาก
+            GameObject newEnemy = Instantiate(selectedPrefab, spawnPos, Quaternion.identity);
+            Debug.Log($"👾 [Spawner] เสกสำเร็จ: {newEnemy.name} | ลำดับคิวธาตุ: {currentPrefabIndex}");
 
-            currentPrefabIndex++; // ขยับคิวเตรียมพร้อมสำหรับตัวถัดไป
-            return true;
+            currentPrefabIndex++; // บันทึกคิวขยับรอตัวธาตุต่อไป
         }
-
-        return false;
-    }
-
-    // ฟังก์ชันเรียกคิวมอนตัวถัดไป (สำหรับกรณีเชื่อมสายสัญญาณระบบเก่า)
-    public void NextEnemy()
-    {
-        SpawnNextEnemy();
     }
 }
