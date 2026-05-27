@@ -41,7 +41,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8034101029572078092}
   - component: {fileID: 4938966397196568066}
-  - component: {fileID: 2881118248294918449}
   - component: {fileID: 2361689781471425627}
   - component: {fileID: 1660163405332151331}
   - component: {fileID: 2917118534343500385}
@@ -129,28 +128,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!95 &2881118248294918449
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2472591329810797421}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: bbfa32036e5bb6c429cc4c45895c14ba, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!114 &2361689781471425627
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -176,6 +153,12 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   attackDamage: 10
+  characterSpriteRenderer: {fileID: 0}
+  normalFormSprite: {fileID: -8756133390028435123, guid: 4fbe6828e1ca3a249a60423afdc016b8, type: 3}
+  waterFormSprite: {fileID: 0}
+  fireFormSprite: {fileID: 0}
+  windFormSprite: {fileID: 0}
+  earthFormSprite: {fileID: 0}
 --- !u!114 &1660163405332151331
 MonoBehaviour:
   m_ObjectHideFlags: 0

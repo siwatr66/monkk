@@ -1,21 +1,17 @@
-﻿using UnityEngine;
+﻿// PlayerHealth.cs (เวอร์ชันสมบูรณ์ 100% - รองรับระบบส่งสัญญาณฟื้นชีพด่านเดิม)
+using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
 {
+    [Header("Health Settings")]
     [SerializeField] private int maxHealth = 100;
     private int currentHealth;
-    private bool isDead;
 
-    private SpriteRenderer spriteRenderer;
-    private PlayerController playerController;
+    private bool isDead = false;
 
-    void Awake()
+    void Start()
     {
-        currentHealth = maxHealth;
-        isDead = false;
-
-        TryGetComponent(out spriteRenderer);
-        TryGetComponent(out playerController);
+        ResetHealth();
     }
 
     public void TakeDamage(int damage)
@@ -23,7 +19,7 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= damage;
-        Debug.Log($"Player HP: {currentHealth}");
+        Debug.Log($"盒 [PLAYER HP] พระโดนโจมตี! เลือดเหลือ: {currentHealth} / {maxHealth}");
 
         if (currentHealth <= 0)
         {
@@ -31,27 +27,12 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
-    public void HealFull()
-    {
-        currentHealth = maxHealth;
-        isDead = false;
-        Debug.Log($"Player healed: {currentHealth}/{maxHealth}");
-    }
-
-    void Die()
+    private void Die()
     {
         if (isDead) return;
         isDead = true;
 
-        Debug.Log("Player HP reaches 0.");
-
-        if (spriteRenderer != null) spriteRenderer.enabled = false;
-        if (playerController != null) playerController.enabled = false;
-
-        if (TryGetComponent<Rigidbody2D>(out var rb))
-        {
-            rb.linearVelocity = Vector2.zero;
-        }
+        Debug.Log("💀 [PLAYER STATUS] พระสิ้นชีพ! ส่งสายสัญญาณให้คำสั่ง GameManager จัดการชุบชีวิต...");
 
         if (GameManager.Instance != null)
         {
@@ -59,16 +40,22 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
+    public void HealFull()
+    {
+        currentHealth = maxHealth;
+        isDead = false;
+        Debug.Log($"💖 [PLAYER HP] เติมเลือดเต็มหลอดจากการฆ่ามอนสเตอร์! HP: {currentHealth}/{maxHealth}");
+    }
+
     public void RespawnSetup()
     {
-        if (spriteRenderer != null) spriteRenderer.enabled = true;
-        if (playerController != null) playerController.enabled = true;
+        ResetHealth();
+    }
 
-        if (TryGetComponent<Rigidbody2D>(out var rb))
-        {
-            rb.linearVelocity = Vector2.zero;
-        }
-
-        HealFull();
+    private void ResetHealth()
+    {
+        currentHealth = maxHealth;
+        isDead = false;
+        Debug.Log($"🛡️ [PLAYER HP] ฟื้นชีพเสร็จสิ้น! รีเซ็ตเลือดพระกลับมาเต็มหลอด: {currentHealth}/{maxHealth}");
     }
 }

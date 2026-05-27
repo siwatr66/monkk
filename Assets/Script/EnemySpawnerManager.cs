@@ -1,18 +1,16 @@
-﻿using UnityEngine;
+﻿// EnemySpawnerManager.cs (เวอร์ชันสมบูรณ์ 100% บังคับสตาร์ทเสกศัตรูตัวแรกทันที)
+using UnityEngine;
 
 public class EnemySpawnerManager : MonoBehaviour
 {
     public static EnemySpawnerManager Instance { get; private set; }
 
-    [Header("Enemy Queue Settings")]
-    [SerializeField] private GameObject[] enemyPrefabs;
-    [SerializeField] private Transform spawnPoint;
+    [Header("Spawner Settings")]
+    [SerializeField] private GameObject[] enemyPrefabs; // อาร์เรย์เก็บแผ่น Prefab มอนสเตอร์
+    [SerializeField] private Transform spawnPoint;      // จุดพิกจัดเสกมอนสเตอร์ในฉาก
 
-    [Header("Patrol Reference for Spawned Enemies")]
-    [SerializeField] private Transform leftPoint;
-    [SerializeField] private Transform rightPoint;
-
-    private int currentEnemyIndex = 0;
+    private int currentPrefabIndex = 0;
+    private GameObject currentSpawnedEnemy;
 
     void Awake()
     {
@@ -20,82 +18,61 @@ public class EnemySpawnerManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    public void BeginRun()
+    void Start()
     {
-        currentEnemyIndex = 0;
-        ClearActiveEnemies();
-        SpawnCurrentEnemy();
-    }
-
-    public void ResetToMenuState()
-    {
-        currentEnemyIndex = 0;
-        ClearActiveEnemies();
-    }
-
-    public bool SpawnCurrentEnemy()
-    {
-        if (enemyPrefabs == null || enemyPrefabs.Length == 0)
-        {
-            Debug.LogError("[Spawner] Enemy queue is empty.");
-            return false;
-        }
-
-        if (spawnPoint == null)
-        {
-            Debug.LogError("[Spawner] Spawn point is missing.");
-            return false;
-        }
-
-        if (currentEnemyIndex >= enemyPrefabs.Length)
-        {
-            Debug.Log("[Spawner] No enemy left in the queue.");
-            return false;
-        }
-
-        if (enemyPrefabs[currentEnemyIndex] == null)
-        {
-            Debug.LogError($"[Spawner] Enemy prefab at index {currentEnemyIndex} is missing.");
-            return false;
-        }
-
-        GameObject newEnemy = Instantiate(enemyPrefabs[currentEnemyIndex], spawnPoint.position, Quaternion.identity);
-        newEnemy.tag = "Enemy";
-        newEnemy.name = "Enemy_Form_" + enemyPrefabs[currentEnemyIndex].name;
-        Debug.Log($"[Spawner] Spawned {newEnemy.name} at queue index {currentEnemyIndex}");
-
-        if (newEnemy.TryGetComponent<EnemyAI>(out var enemyAI))
-        {
-            enemyAI.SetupPatrolPoints(leftPoint, rightPoint);
-        }
-
-        return true;
-    }
-
-    public bool NextEnemy()
-    {
-        currentEnemyIndex++;
-        Debug.Log($"[Spawner] Moving to queue index {currentEnemyIndex}");
-        return SpawnCurrentEnemy();
-    }
-
-    public bool SpawnNextEnemy()
-    {
-        return NextEnemy();
-    }
-
-    public void ResetSpawner()
-    {
+        // 🟢 [ระบบเซฟโซนกันเหนียว]: สั่งเปิดสวิตช์เสกมอนตัวแรกทันทีเมื่อเข้าฉากเกม
         BeginRun();
     }
 
-    public void ClearActiveEnemies()
+    // ฟังก์ชันสั่งเริ่มต้นวงจรเสกมอนสเตอร์ด่านหลัก
+    public void BeginRun()
     {
-        GameObject[] activeEnemies = GameObject.FindGameObjectsWithTag("Enemy");
-        foreach (GameObject enemy in activeEnemies)
+        currentPrefabIndex = 0;
+
+        // ถ้าในสนามยังไม่มีมอนสเตอร์ยืนอยู่เลย ให้สั่งเสกทันที
+        if (currentSpawnedEnemy == null)
         {
-            enemy.tag = "Untagged";
-            Destroy(enemy);
+            SpawnNextEnemy();
         }
+    }
+
+    // ฟังก์ชันหลักในการสั่งผลิตตัวมอนสเตอร์เด้งลงสนาม
+    public bool SpawnNextEnemy()
+    {
+        // 1. เช็คความปลอดภัยก่อนว่ามีไฟล์ Prefab ใส่ไว้ในช่องหรือเปล่า
+        if (enemyPrefabs == null || enemyPrefabs.Length == 0)
+        {
+            Debug.LogError("🛑 [Spawner Error] ลืมลากไฟล์มอนสเตอร์ใส่ในช่อง Enemy Prefabs ของเครื่องเสกศัตรู!");
+            return false;
+        }
+
+        // 2. เช็คจุดพิกัดวาง ถ้าไม่มีให้ใช้ตำแหน่งของเครื่องเสกเองแทน
+        Vector3 spawnPos = spawnPoint != null ? spawnPoint.position : transform.position;
+
+        // ถ้าดัชนีเกินจำนวนคิวมอนสเตอร์ ให้ลูปวนกลับมาตัวแรกใหม่ (เล่นวนไปเรื่อยๆ)
+        if (currentPrefabIndex >= enemyPrefabs.Length)
+        {
+            currentPrefabIndex = 0;
+        }
+
+        GameObject selectedPrefab = enemyPrefabs[currentPrefabIndex];
+
+        if (selectedPrefab != null)
+        {
+            // 💥 สั่งคลอดวัตถุมอนสเตอร์ลงสนามฟิสิกส์ 2D
+            currentSpawnedEnemy = Instantiate(selectedPrefab, spawnPos, Quaternion.identity);
+            Debug.Log($"👾 [Spawner Success] เสกมอนสเตอร์สำเร็จ! ตัวที่ปล่อย: {currentSpawnedEnemy.name} | ลำดับคิวค้าง: {currentPrefabIndex}");
+
+            currentPrefabIndex++; // ขยับคิวเตรียมพร้อมสำหรับตัวถัดไป
+            return true;
+        }
+
+        return false;
+    }
+
+    // ฟังก์ชันเรียกคิวมอนตัวถัดไป (สำหรับกรณีเชื่อมสายสัญญาณระบบเก่า)
+    public void NextEnemy()
+    {
+        SpawnNextEnemy();
     }
 }

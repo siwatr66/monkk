@@ -1,14 +1,13 @@
-// PlayerController.cs
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement")]
+    [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float jumpForce = 10f;
     private Rigidbody2D rb;
-    private float mobileMoveInput = 0f;
-    private float combinedMoveInput = 0f;
+    private float moveInputX = 0f;
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
@@ -22,153 +21,119 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask enemyLayers;
     [SerializeField] private int attackDamage = 10;
 
+    [Header("Shapeshifter Visuals")]
+    [SerializeField] private SpriteRenderer characterSpriteRenderer;
+    [SerializeField] private Sprite normalFormSprite;
+    [SerializeField] private Sprite waterFormSprite;
+    [SerializeField] private Sprite fireFormSprite;
+    [SerializeField] private Sprite windFormSprite;
+    [SerializeField] private Sprite earthFormSprite;
+
     private Animator anim;
     private bool isFacingRight = true;
 
-    private static readonly int SpeedHash = Animator.StringToHash("Speed");
+    // 🟢 [แก้ไขจุดที่ 1]: สลับชื่อแฮชส่งค่าให้ตรงกับพารามิเตอร์ "Run" และเพิ่ม "isGrounded" ในอนิเมเตอร์
+    private static readonly int RunHash = Animator.StringToHash("Run");
+    private static readonly int GroundedHash = Animator.StringToHash("isGrounded");
     private static readonly int AttackHash = Animator.StringToHash("Attack");
+
+    private InputSystem_Actions inputActions;
+
+    void Awake()
+    {
+        inputActions = new InputSystem_Actions();
+        inputActions.Player.Move.performed += ctx => moveInputX = ctx.ReadValue<Vector2>().x;
+        inputActions.Player.Move.canceled += ctx => moveInputX = 0f;
+        inputActions.Player.Jump.performed += ctx => JumpLogic();
+        inputActions.Player.Attack.performed += ctx => AttackLogic();
+    }
+
+    void OnEnable() => inputActions.Player.Enable();
+    void OnDisable() => inputActions.Player.Disable();
 
     void Start()
     {
         if (TryGetComponent<Rigidbody2D>(out var rigidbody2D)) rb = rigidbody2D;
         if (TryGetComponent<Animator>(out var animator)) anim = animator;
+        if (characterSpriteRenderer == null) characterSpriteRenderer = GetComponent<SpriteRenderer>();
     }
 
     void Update()
     {
-        // 1. ระบบรับค่าเคลื่อนที่จากคีย์บอร์ด
-        float keyboardMoveInput = 0f;
-        if (InputSystemKeyboardCheck(KeyCode.D) || InputSystemKeyboardCheck(KeyCode.RightArrow)) keyboardMoveInput = 1f;
-        else if (InputSystemKeyboardCheck(KeyCode.A) || InputSystemKeyboardCheck(KeyCode.LeftArrow)) keyboardMoveInput = -1f;
-
-        combinedMoveInput = Mathf.Abs(keyboardMoveInput) > 0.1f ? keyboardMoveInput : mobileMoveInput;
-
         if (rb != null)
         {
-            rb.linearVelocity = new Vector2(combinedMoveInput * moveSpeed, rb.linearVelocity.y);
+            rb.linearVelocity = new Vector2(moveInputX * moveSpeed, rb.linearVelocity.y);
         }
 
-        if (combinedMoveInput > 0 && !isFacingRight) Flip();
-        else if (combinedMoveInput < 0 && isFacingRight) Flip();
+        if (moveInputX > 0 && !isFacingRight) Flip();
+        else if (moveInputX < 0 && isFacingRight) Flip();
 
-        if (anim != null) anim.SetFloat(SpeedHash, Mathf.Abs(combinedMoveInput));
+        // 🟢 [แก้ไขระบบเช็ค Layer พื้น]: ตรวจหาเลเยอร์หญ้า/ด่านสุสานผ่านพิกัดกล่องเซนเซอร์ปลายเท้า
+        if (groundCheck != null)
+        {
+            isGrounded = Physics2D.OverlapCircle(groundCheck.position, checkRadius, whatIsGround);
+        }
 
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, checkRadius, whatIsGround);
+        // 🟢 [แก้ไขจุดที่ 2]: บังคับส่งสัญญาณชีพไปบงการหน้าต่าง Animator ให้เปลี่ยนท่า
+        if (anim != null && anim.enabled)
+        {
+            anim.SetFloat(RunHash, Mathf.Abs(moveInputX)); // ส่งค่าความเร็วเดินไปที่สวิตช์ Run
+            anim.SetBool(GroundedHash, isGrounded);       // ส่งค่าแท้/เท็จของการแตะพื้นเลเยอร์ไปที่ isGrounded
+        }
 
-        // 2. ระบบสั่งกระโดดและโจมตี
-        if (InputSystemKeyboardCheckDown(KeyCode.Space) && isGrounded) JumpLogic();
-        if (InputSystemMouseClickCheck()) AttackLogic();
-
-        // ⭐ 3. [ระบบดักจับปุ่มแปลงร่าง 1-4 สำหรับ Unity 6]
-        HandleShapeshiftInput();
+        // คอยเช็คอัปเดตรูปร่างให้ตรงเสมอตลอดเวลา
+        ForceApplyVisualChange();
     }
 
-    // ⭐ อัลกอริทึมเช็คปุ่มกดเลข 1-4 เพื่อสั่งสลับร่างแบบยิงตรงเข้า Manager
-    // เปลี่ยนมาใช้ระบบส่งตัวเลขเจาะจง เพื่อให้ตรงกับ ShapeshiftManager ดั้งเดิมของคุณ
-    private void HandleShapeshiftInput()
+    // ⭐ [ฟังก์ชันเปลี่ยนรูปภาพพระแปลงร่าง]: เปิดเป็น public เพื่อให้ระบบ UI เรียกใช้งานได้
+    public void ForceApplyVisualChange()
     {
-        if (ShapeshiftManager.Instance == null) return;
+        if (ShapeshiftManager.Instance == null || characterSpriteRenderer == null) return;
 
-        if (InputSystemKeyboardCheckDown(KeyCode.Alpha1))
+        int currentForm = ShapeshiftManager.Instance.CurrentForm;
+        Sprite selectedSprite = null;
+
+        switch (currentForm)
         {
-            // ส่งเลข 1 แทน (หรือถ้าในระบบคุณนับ Water เป็นเลขอื่น เช่น 0 หรือ 2 สามารถเปลี่ยนเลขในวงเล็บได้เลยครับ)
-            ShapeshiftManager.Instance.TransformToForm(1);
-            Debug.Log("[Player] กดปุ่มเลข 1 สลับร่างธาตุน้ำ!");
+            case 0: selectedSprite = normalFormSprite; break;
+            case 1: selectedSprite = waterFormSprite; break;
+            case 2: selectedSprite = fireFormSprite; break;
+            case 3: selectedSprite = windFormSprite; break;
+            case 4: selectedSprite = earthFormSprite; break;
         }
-        else if (InputSystemKeyboardCheckDown(KeyCode.Alpha2))
+
+        if (selectedSprite != null && characterSpriteRenderer.sprite != selectedSprite)
         {
-            ShapeshiftManager.Instance.TransformToForm(2); // ส่งเลข 2 แทนธาตุไฟ
-            Debug.Log("[Player] กดปุ่มเลข 2 สลับร่างธาตุไฟ!");
-        }
-        else if (InputSystemKeyboardCheckDown(KeyCode.Alpha3))
-        {
-            ShapeshiftManager.Instance.TransformToForm(3); // ส่งเลข 3 แทนธาตุลม
-            Debug.Log("[Player] กดปุ่มเลข 3 สลับร่างธาตุลม!");
-        }
-        else if (InputSystemKeyboardCheckDown(KeyCode.Alpha4))
-        {
-            ShapeshiftManager.Instance.TransformToForm(4); // ส่งเลข 4 แทนธาตุดิน
-            Debug.Log("[Player] กดปุ่มเลข 4 สลับร่างธาตุดิน!");
-        }
-        else if (InputSystemKeyboardCheckDown(KeyCode.Alpha0))
-        {
-            ShapeshiftManager.Instance.TransformToForm(0); // ส่งเลข 0 กลับร่างปกติ
-            Debug.Log("[Player] กดปุ่มเลข 0 กลับสู่ร่างพระปกติ");
+            if (anim != null) anim.enabled = (currentForm == 0);
+            characterSpriteRenderer.sprite = selectedSprite;
+            Debug.Log($"🎭 [เปลี่ยนร่างสำเร็จ] ตัวพระสลับภาพกราฟิกไปใช้ร่างหมายเลข {currentForm} บนหน้าจอแล้ว!");
         }
     }
 
     private void JumpLogic()
     {
-        if (rb != null) rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+        if (isGrounded && rb != null)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+        }
     }
 
     private void AttackLogic()
     {
-        if (anim != null) anim.SetTrigger(AttackHash);
-
+        if (anim != null && anim.enabled) anim.SetTrigger(AttackHash);
         if (attackPoint == null) return;
 
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
 
         foreach (Collider2D enemy in hitEnemies)
         {
-            EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
-            if (enemyHealth == null) enemyHealth = enemy.GetComponentInChildren<EnemyHealth>();
-
-            if (enemyHealth != null)
+            if (enemy.TryGetComponent<EnemyHealth>(out var enemyHealth))
             {
-                // ดึงข้อมูลธาตุปัจจุบันที่พระกำลังแปลงร่างอยู่ไปคำนวณดาเมจคูณไขว้
-                EnemyType currentForm = EnemyType.Normal;
-                if (ShapeshiftManager.Instance != null)
-                {
-                    currentForm = ShapeshiftManager.Instance.CurrentForm;
-                }
-
-                enemyHealth.TakeDamage(attackDamage, currentForm);
+                int currentFormIndex = ShapeshiftManager.Instance != null ? ShapeshiftManager.Instance.CurrentForm : 0;
+                enemyHealth.TakeDamage(attackDamage, (EnemyType)currentFormIndex);
             }
         }
     }
-
-    // ฟังก์ชันตรวจจับการกดปุ่มออโต้ รองรับทั้ง Input System เก่าและใหม่
-    private bool InputSystemKeyboardCheck(KeyCode key)
-    {
-#if ENABLE_INPUT_SYSTEM
-        var currentKeyboard = UnityEngine.InputSystem.Keyboard.current;
-        if (currentKeyboard == null) return false;
-        if (key == KeyCode.D || key == KeyCode.RightArrow) return currentKeyboard.dKey.isPressed || currentKeyboard.rightArrowKey.isPressed;
-        if (key == KeyCode.A || key == KeyCode.LeftArrow) return currentKeyboard.aKey.isPressed || currentKeyboard.leftArrowKey.isPressed;
-#endif
-        return Input.GetKey(key);
-    }
-
-    private bool InputSystemKeyboardCheckDown(KeyCode key)
-    {
-#if ENABLE_INPUT_SYSTEM
-        var currentKeyboard = UnityEngine.InputSystem.Keyboard.current;
-        if (currentKeyboard == null) return false;
-        if (key == KeyCode.Space) return currentKeyboard.spaceKey.wasPressedThisFrame;
-        if (key == KeyCode.Alpha1) return currentKeyboard.digit1Key.wasPressedThisFrame;
-        if (key == KeyCode.Alpha2) return currentKeyboard.digit2Key.wasPressedThisFrame;
-        if (key == KeyCode.Alpha3) return currentKeyboard.digit3Key.wasPressedThisFrame;
-        if (key == KeyCode.Alpha4) return currentKeyboard.digit4Key.wasPressedThisFrame;
-        if (key == KeyCode.Alpha0) return currentKeyboard.digit0Key.wasPressedThisFrame;
-#endif
-        return Input.GetKeyDown(key);
-    }
-
-    private bool InputSystemMouseClickCheck()
-    {
-#if ENABLE_INPUT_SYSTEM
-        var currentMouse = UnityEngine.InputSystem.Mouse.current;
-        if (currentMouse == null) return false;
-        return currentMouse.leftButton.wasPressedThisFrame;
-#endif
-        return Input.GetMouseButtonDown(0);
-    }
-
-    public void Move(float direction) => mobileMoveInput = direction;
-    public void MobileJump() { if (isGrounded) JumpLogic(); }
-    public void MobileAttack() => AttackLogic();
 
     void Flip()
     {
@@ -176,12 +141,5 @@ public class PlayerController : MonoBehaviour
         Vector3 scaler = transform.localScale;
         scaler.x *= -1;
         transform.localScale = scaler;
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        if (attackPoint == null) return;
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
 }
